@@ -1,0 +1,13 @@
+crewai[tools]
+uv
+reqsnap
+sentence_transformers
+langchain
+langchain-community
+langchain-huggingface
+pypdf
+langchain-groq
+faiss-cpu
+tavily-python
+crewai[google-genai]
+wikipedia
