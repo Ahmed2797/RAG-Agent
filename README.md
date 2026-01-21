@@ -26,8 +26,8 @@ A **fast, production-ready PDF question-answering assistant** built with **CrewA
 
 ## 🏗 Architecture
 
-```mermaid
-flowchart LR
+    mermaid
+    flowchart LR
     A[Browser / Frontend] --> B[FastAPI /api/chat]
     B --> C[Pipeline(query, pdf_path)]
     C --> D[PDF Agent]
