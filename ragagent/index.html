@@ -1,0 +1,991 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>🤖 PDF RAG Assistant</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        :root {
+            --primary: #6366f1;
+            --primary-dark: #4f46e5;
+            --secondary: #10b981;
+            --dark-bg: #0f172a;
+            --card-bg: #1e293b;
+            --border-color: #334155;
+            --text-primary: #f1f5f9;
+            --text-secondary: #94a3b8;
+            --success: #10b981;
+            --danger: #ef4444;
+            --warning: #f59e0b;
+        }
+        
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            transition: all 0.3s ease;
+        }
+        
+        body {
+            font-family: 'Segoe UI', system-ui, sans-serif;
+            background: var(--dark-bg);
+            color: var(--text-primary);
+            min-height: 100vh;
+            padding: 20px;
+            animation: fadeIn 0.5s ease-out;
+            overflow: hidden; /* Prevent body scrolling */
+        }
+        
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(-10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            background: var(--card-bg);
+            border-radius: 20px;
+            overflow: hidden;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.4);
+            border: 1px solid var(--border-color);
+            height: calc(100vh - 40px); /* Fit within viewport */
+            display: flex;
+            flex-direction: column;
+        }
+        
+        .header {
+            background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%);
+            padding: 30px;
+            text-align: center;
+            position: relative;
+            overflow: hidden;
+            flex-shrink: 0; /* Don't shrink header */
+        }
+        
+        .header::before {
+            content: '';
+            position: absolute;
+            top: -50%;
+            left: -50%;
+            width: 200%;
+            height: 200%;
+            background: radial-gradient(circle, rgba(255,255,255,0.1) 1px, transparent 1px);
+            background-size: 50px 50px;
+            animation: float 20s linear infinite;
+        }
+        
+        @keyframes float {
+            0% { transform: translate(0, 0) rotate(0deg); }
+            100% { transform: translate(-50px, -50px) rotate(360deg); }
+        }
+        
+        .header h1 {
+            font-size: 2.5rem;
+            margin-bottom: 10px;
+            position: relative;
+            animation: slideDown 0.6s ease-out 0.2s both;
+        }
+        
+        @keyframes slideDown {
+            from { opacity: 0; transform: translateY(-20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        
+        .header p {
+            font-size: 1.1rem;
+            opacity: 0.9;
+            position: relative;
+            animation: slideDown 0.6s ease-out 0.4s both;
+        }
+        
+        .main-content {
+            display: flex;
+            flex: 1; /* Take remaining space */
+            min-height: 0; /* Important for flex children scrolling */
+        }
+        
+        .sidebar {
+            width: 350px;
+            background: rgba(30, 41, 59, 0.8);
+            padding: 25px;
+            border-right: 1px solid var(--border-color);
+            backdrop-filter: blur(10px);
+            flex-shrink: 0; /* Don't shrink sidebar */
+            overflow-y: auto; /* Allow sidebar scrolling */
+            height: 100%; /* Fill available height */
+        }
+        
+        .upload-box {
+            background: rgba(15, 23, 42, 0.7);
+            border: 2px dashed var(--primary);
+            border-radius: 15px;
+            padding: 25px;
+            text-align: center;
+            margin-bottom: 25px;
+            cursor: pointer;
+            position: relative;
+            overflow: hidden;
+            animation: pulse 2s infinite;
+        }
+        
+        @keyframes pulse {
+            0%, 100% { border-color: var(--primary); }
+            50% { border-color: var(--secondary); }
+        }
+        
+        .upload-box:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 10px 30px rgba(99, 102, 241, 0.3);
+        }
+        
+        .upload-box i {
+            font-size: 3rem;
+            margin-bottom: 15px;
+            color: var(--primary);
+        }
+        
+        .upload-box h3 {
+            margin-bottom: 10px;
+            color: var(--text-primary);
+        }
+        
+        .upload-box p {
+            color: var(--text-secondary);
+            font-size: 0.9rem;
+        }
+        
+        .pdf-list h3 {
+            margin-bottom: 20px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            color: var(--text-primary);
+        }
+        
+        .pdf-item {
+            background: rgba(15, 23, 42, 0.7);
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            padding: 18px;
+            margin-bottom: 15px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            animation: slideInRight 0.5s ease-out;
+            animation-fill-mode: both;
+        }
+        
+        @keyframes slideInRight {
+            from { opacity: 0; transform: translateX(-20px); }
+            to { opacity: 1; transform: translateX(0); }
+        }
+        
+        .pdf-item:hover {
+            border-color: var(--primary);
+            transform: translateX(5px);
+            box-shadow: 0 5px 20px rgba(0, 0, 0, 0.3);
+        }
+        
+        .pdf-item.active {
+            border-color: var(--success);
+            background: linear-gradient(135deg, rgba(16, 185, 129, 0.15) 0%, rgba(16, 185, 129, 0.05) 100%);
+        }
+        
+        .pdf-info {
+            flex: 1;
+        }
+        
+        .pdf-name {
+            font-weight: 600;
+            color: var(--text-primary);
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 5px;
+        }
+        
+        .pdf-details {
+            font-size: 0.85rem;
+            color: var(--text-secondary);
+            display: flex;
+            gap: 15px;
+        }
+        
+        .pdf-actions {
+            display: flex;
+            gap: 10px;
+        }
+        
+        .action-btn {
+            background: rgba(99, 102, 241, 0.1);
+            border: 1px solid rgba(99, 102, 241, 0.3);
+            color: var(--primary);
+            width: 36px;
+            height: 36px;
+            border-radius: 8px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.2s;
+        }
+        
+        .action-btn:hover {
+            background: var(--primary);
+            color: white;
+            transform: scale(1.1);
+        }
+        
+        .action-btn.delete {
+            background: rgba(239, 68, 68, 0.1);
+            border-color: rgba(239, 68, 68, 0.3);
+            color: var(--danger);
+        }
+        
+        .action-btn.delete:hover {
+            background: var(--danger);
+            color: white;
+        }
+        
+        .active-badge {
+            background: var(--success);
+            color: white;
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 0.75rem;
+            font-weight: 600;
+            animation: pulse 2s infinite;
+        }
+        
+        .chat-area {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            background: rgba(15, 23, 42, 0.5);
+            min-height: 0; /* Important for flex children scrolling */
+        }
+        
+        .messages-container {
+            flex: 1; /* Take remaining space */
+            display: flex;
+            flex-direction: column;
+            min-height: 0; /* Important for scrolling */
+            position: relative;
+        }
+        
+        .messages {
+            flex: 1;
+            padding: 30px;
+            overflow-y: auto; /* ONLY messages scroll */
+            background: transparent;
+            display: flex;
+            flex-direction: column;
+        }
+        
+        /* Custom scrollbar for messages */
+        .messages::-webkit-scrollbar {
+            width: 8px;
+        }
+        
+        .messages::-webkit-scrollbar-track {
+            background: rgba(30, 41, 59, 0.3);
+            border-radius: 4px;
+        }
+        
+        .messages::-webkit-scrollbar-thumb {
+            background: var(--primary);
+            border-radius: 4px;
+        }
+        
+        .messages::-webkit-scrollbar-thumb:hover {
+            background: var(--primary-dark);
+        }
+        
+        .message {
+            max-width: 75%;
+            margin-bottom: 20px;
+            animation: messageAppear 0.4s ease-out;
+            animation-fill-mode: both;
+        }
+        
+        @keyframes messageAppear {
+            from { opacity: 0; transform: translateY(15px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        
+        .user-message {
+            margin-left: auto;
+        }
+        
+        .bot-message {
+            margin-right: auto;
+        }
+        
+        .message-bubble {
+            padding: 18px 22px;
+            border-radius: 18px;
+            backdrop-filter: blur(10px);
+            line-height: 1.6;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .message-bubble::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: linear-gradient(45deg, transparent, rgba(255,255,255,0.05), transparent);
+            animation: shimmer 2s infinite;
+        }
+        
+        @keyframes shimmer {
+            0% { transform: translateX(-100%); }
+            100% { transform: translateX(100%); }
+        }
+        
+        .user-bubble {
+            background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%);
+            color: white;
+            border-bottom-right-radius: 5px;
+        }
+        
+        .bot-bubble {
+            background: rgba(30, 41, 59, 0.8);
+            border: 1px solid var(--border-color);
+            border-bottom-left-radius: 5px;
+        }
+        
+        .message-header {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 10px;
+            font-weight: 600;
+        }
+        
+        .message-time {
+            font-size: 0.8rem;
+            color: var(--text-secondary);
+            margin-top: 8px;
+            text-align: right;
+        }
+        
+        .input-area {
+            padding: 25px;
+            background: rgba(15, 23, 42, 0.7);
+            border-top: 1px solid var(--border-color);
+            display: flex;
+            gap: 15px;
+            flex-shrink: 0; /* Don't shrink input area */
+        }
+        
+        .chat-input {
+            flex: 1;
+            padding: 18px 22px;
+            background: rgba(30, 41, 59, 0.8);
+            border: 2px solid var(--border-color);
+            border-radius: 15px;
+            color: var(--text-primary);
+            font-size: 16px;
+            font-family: inherit;
+        }
+        
+        .chat-input:focus {
+            outline: none;
+            border-color: var(--primary);
+            box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.2);
+        }
+        
+        .send-btn {
+            background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%);
+            color: white;
+            border: none;
+            padding: 0 35px;
+            border-radius: 15px;
+            cursor: pointer;
+            font-size: 16px;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .send-btn:hover:not(:disabled) {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 30px rgba(99, 102, 241, 0.3);
+        }
+        
+        .send-btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+        
+        .typing-indicator {
+            display: none;
+            padding: 15px 22px;
+            background: rgba(30, 41, 59, 0.8);
+            border-radius: 18px;
+            margin: 0 30px 20px 30px;
+            width: fit-content;
+            border: 1px solid var(--border-color);
+            align-self: flex-start; /* Align to left */
+        }
+        
+        .typing-content {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+        
+        .typing-dots {
+            display: flex;
+            gap: 5px;
+        }
+        
+        .typing-dots span {
+            width: 8px;
+            height: 8px;
+            background: var(--primary);
+            border-radius: 50%;
+            animation: typing 1.4s infinite ease-in-out;
+        }
+        
+        .typing-dots span:nth-child(1) { animation-delay: -0.32s; }
+        .typing-dots span:nth-child(2) { animation-delay: -0.16s; }
+        
+        @keyframes typing {
+            0%, 80%, 100% { transform: scale(0); opacity: 0.5; }
+            40% { transform: scale(1); opacity: 1; }
+        }
+        
+        .status-bar {
+            padding: 15px 30px;
+            background: rgba(15, 23, 42, 0.7);
+            color: var(--text-secondary);
+            font-size: 0.9rem;
+            text-align: center;
+            border-top: 1px solid var(--border-color);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-shrink: 0; /* Don't shrink status bar */
+        }
+        
+        @media (max-width: 1024px) {
+            .main-content {
+                flex-direction: column;
+            }
+            
+            .sidebar {
+                width: 100%;
+                border-right: none;
+                border-bottom: 1px solid var(--border-color);
+                max-height: 300px; /* Limit sidebar height on mobile */
+            }
+            
+            .container {
+                height: 95vh; /* Slightly smaller on mobile */
+            }
+        }
+        
+        @media (max-width: 768px) {
+            .header h1 {
+                font-size: 2rem;
+            }
+            
+            .message {
+                max-width: 90%;
+            }
+            
+            body {
+                padding: 10px;
+            }
+        }
+        
+        /* Scroll to bottom button */
+        .scroll-down-btn {
+            position: absolute;
+            bottom: 100px;
+            right: 40px;
+            background: var(--primary);
+            color: white;
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            border: none;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            opacity: 0;
+            transform: translateY(10px);
+            transition: all 0.3s ease;
+            z-index: 10;
+        }
+        
+        .scroll-down-btn.show {
+            opacity: 1;
+            transform: translateY(0);
+        }
+        
+        .scroll-down-btn:hover {
+            background: var(--primary-dark);
+            transform: translateY(-2px);
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1><i class="fas fa-robot"></i> PDF RAG Assistant</h1>
+            <p>Upload PDFs and ask intelligent questions with AI</p>
+        </div>
+        
+        <div class="main-content">
+            <div class="sidebar">
+                <div class="upload-box" onclick="document.getElementById('pdfUpload').click()">
+                    <i class="fas fa-cloud-upload-alt"></i>
+                    <h3>Upload PDF Document</h3>
+                    <p>Drag & drop or click to upload</p>
+                    <input type="file" id="pdfUpload" accept=".pdf" style="display:none" onchange="uploadPDF()">
+                </div>
+                
+                <div class="pdf-list">
+                    <h3><i class="fas fa-folder-open"></i> Your Documents</h3>
+                    <div id="pdfItems">
+                        <div style="text-align: center; padding: 30px; color: var(--text-secondary);">
+                            <i class="fas fa-file-pdf" style="font-size: 3rem; margin-bottom: 15px;"></i>
+                            <p>No PDFs uploaded yet</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="chat-area">
+                <div class="messages-container">
+                    <div class="messages" id="messages">
+                        <div class="message bot-message">
+                            <div class="message-bubble bot-bubble">
+                                <div class="message-header">
+                                    <i class="fas fa-robot"></i>
+                                    <span>AI Assistant</span>
+                                </div>
+                                <p>Welcome! Upload a PDF document to start intelligent conversations. I can analyze and answer questions about your documents using RAG technology.</p>
+                            </div>
+                            <div class="message-time">Just now</div>
+                        </div>
+                    </div>
+                    
+                    <button class="scroll-down-btn" id="scrollDownBtn" onclick="scrollToBottom()" title="Scroll to bottom">
+                        <i class="fas fa-chevron-down"></i>
+                    </button>
+                </div>
+                
+                <div class="typing-indicator" id="typingIndicator">
+                    <div class="typing-content">
+                        <div class="typing-dots">
+                            <span></span>
+                            <span></span>
+                            <span></span>
+                        </div>
+                        <span>Analyzing PDF and thinking...</span>
+                    </div>
+                </div>
+                
+                <div class="input-area">
+                    <input type="text" class="chat-input" id="question" 
+                           placeholder="Ask a question about your PDF..." 
+                           autocomplete="off"
+                           onkeypress="if(event.key === 'Enter') sendMessage()">
+                    <button class="send-btn" id="sendButton" onclick="sendMessage()">
+                        <i class="fas fa-paper-plane"></i> Send
+                    </button>
+                </div>
+                
+                <div class="status-bar">
+                    <div id="statusText">Ready • Upload a PDF to begin</div>
+                    <div id="processingTime"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <script>
+        // Global state
+        let activePdf = null;
+        let messageDelay = 100;
+        let scrollDownBtn = null;
+        let messagesDiv = null;
+        
+        // Initialize on page load
+        document.addEventListener('DOMContentLoaded', function() {
+            scrollDownBtn = document.getElementById('scrollDownBtn');
+            messagesDiv = document.getElementById('messages');
+            
+            loadPDFs();
+            updateStatus('Ready • Upload a PDF to begin');
+            focusInput();
+            
+            // Add welcome message animation
+            const welcomeMsg = document.querySelector('.bot-message');
+            welcomeMsg.style.animationDelay = '0.2s';
+            
+            // Setup scroll detection
+            setupScrollDetection();
+        });
+        
+        // Setup scroll detection for scroll-to-bottom button
+        function setupScrollDetection() {
+            messagesDiv.addEventListener('scroll', function() {
+                const scrollableHeight = messagesDiv.scrollHeight - messagesDiv.clientHeight;
+                const currentScroll = messagesDiv.scrollTop;
+                
+                // Show scroll button if not at bottom
+                if (currentScroll < scrollableHeight - 100) {
+                    scrollDownBtn.classList.add('show');
+                } else {
+                    scrollDownBtn.classList.remove('show');
+                }
+            });
+        }
+        
+        // Scroll to bottom function
+        function scrollToBottom() {
+            messagesDiv.scrollTo({
+                top: messagesDiv.scrollHeight,
+                behavior: 'smooth'
+            });
+            scrollDownBtn.classList.remove('show');
+        }
+        
+        // Auto-scroll to bottom when new message added
+        function autoScrollToBottom() {
+            messagesDiv.scrollTop = messagesDiv.scrollHeight;
+            scrollDownBtn.classList.remove('show');
+        }
+        
+        // Load PDF list
+        async function loadPDFs() {
+            try {
+                const response = await fetch('/api/pdfs');
+                const pdfs = await response.json();
+                
+                const container = document.getElementById('pdfItems');
+                if (pdfs.length === 0) {
+                    container.innerHTML = `
+                        <div style="text-align: center; padding: 30px; color: var(--text-secondary);">
+                            <i class="fas fa-file-pdf" style="font-size: 3rem; margin-bottom: 15px;"></i>
+                            <p>No PDFs uploaded yet</p>
+                        </div>
+                    `;
+                    updateActivePdfBadge(null);
+                    return;
+                }
+                
+                let html = '';
+                pdfs.forEach((pdf, index) => {
+                    if (pdf.is_active) {
+                        activePdf = pdf;
+                        updateActivePdfBadge(pdf);
+                    }
+                    
+                    html += `
+                        <div class="pdf-item ${pdf.is_active ? 'active' : ''}" 
+                             style="animation-delay: ${index * 0.1}s">
+                            <div class="pdf-info">
+                                <div class="pdf-name">
+                                    <i class="fas fa-file-pdf"></i>
+                                    <span>${pdf.name}</span>
+                                </div>
+                                <div class="pdf-details">
+                                    <span>${pdf.size} KB</span>
+                                    <span>${pdf.modified}</span>
+                                </div>
+                            </div>
+                            <div class="pdf-actions">
+                                ${pdf.is_active ? 
+                                    '<span class="active-badge">Active</span>' : 
+                                    `<button class="action-btn" onclick="switchPDF('${pdf.name}')" title="Switch to this PDF">
+                                        <i class="fas fa-exchange-alt"></i>
+                                    </button>`}
+                                <button class="action-btn delete" onclick="deletePDF('${pdf.name}')" title="Delete PDF">
+                                    <i class="fas fa-trash"></i>
+                                </button>
+                            </div>
+                        </div>
+                    `;
+                });
+                
+                container.innerHTML = html;
+                
+            } catch (error) {
+                showAlert('Error loading PDFs', 'error');
+                console.error('Error:', error);
+            }
+        }
+        
+        // Upload PDF
+        async function uploadPDF() {
+            const fileInput = document.getElementById('pdfUpload');
+            const file = fileInput.files[0];
+            
+            if (!file) return;
+            
+            if (!file.name.toLowerCase().endsWith('.pdf')) {
+                showAlert('Please select a PDF file', 'error');
+                return;
+            }
+            
+            const formData = new FormData();
+            formData.append('file', file);
+            
+            try {
+                showAlert('Uploading PDF...', 'info');
+                document.getElementById('statusText').textContent = 'Uploading...';
+                
+                const response = await fetch('/api/upload', {
+                    method: 'POST',
+                    body: formData
+                });
+                
+                if (response.ok) {
+                    showAlert('PDF uploaded successfully!', 'success');
+                    await loadPDFs();
+                    
+                    // Add success message
+                    addMessage('✅ PDF uploaded and processed successfully. Ask me anything about it!', false);
+                    
+                } else {
+                    const error = await response.json();
+                    showAlert('Upload failed: ' + error.detail, 'error');
+                }
+                
+            } catch (error) {
+                showAlert('Upload error: ' + error.message, 'error');
+            }
+            
+            fileInput.value = '';
+        }
+        
+        // Switch active PDF
+        async function switchPDF(pdfName) {
+            try {
+                showAlert(`Switching to ${pdfName}...`, 'info');
+                
+                const response = await fetch(`/api/switch/${encodeURIComponent(pdfName)}`, {
+                    method: 'POST'
+                });
+                
+                if (response.ok) {
+                    showAlert(`Now using: ${pdfName}`, 'success');
+                    await loadPDFs();
+                    
+                    // Add confirmation message
+                    addMessage(`📄 Switched to document: ${pdfName}. You can now ask questions about it.`, false);
+                    
+                } else {
+                    const error = await response.json();
+                    showAlert('Switch failed: ' + error.detail, 'error');
+                }
+                
+            } catch (error) {
+                showAlert('Switch error: ' + error.message, 'error');
+            }
+        }
+        
+        // Delete PDF
+        async function deletePDF(pdfName) {
+            if (!confirm(`Delete "${pdfName}"? This action cannot be undone.`)) {
+                return;
+            }
+            
+            try {
+                showAlert(`Deleting ${pdfName}...`, 'info');
+                
+                const response = await fetch(`/api/delete/${encodeURIComponent(pdfName)}`, {
+                    method: 'DELETE'
+                });
+                
+                if (response.ok) {
+                    showAlert('PDF deleted successfully', 'success');
+                    await loadPDFs();
+                    
+                    // If we deleted the active PDF, update chat
+                    if (activePdf && activePdf.name === pdfName) {
+                        addMessage('🗑️ PDF deleted. Please upload a new document to continue.', false);
+                    }
+                    
+                } else {
+                    const error = await response.json();
+                    showAlert('Delete failed: ' + error.detail, 'error');
+                }
+                
+            } catch (error) {
+                showAlert('Delete error: ' + error.message, 'error');
+            }
+        }
+        
+        // Send chat message
+        async function sendMessage() {
+            const input = document.getElementById('question');
+            const message = input.value.trim();
+            
+            if (!message) {
+                showAlert('Please enter a question', 'error');
+                return;
+            }
+            
+            // Add user message
+            addMessage(message, true);
+            input.value = '';
+            
+            // Show typing indicator
+            document.getElementById('typingIndicator').style.display = 'block';
+            document.getElementById('sendButton').disabled = true;
+            updateStatus('Processing your question...');
+            
+            try {
+                const response = await fetch('/api/chat', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({message: message})
+                });
+                
+                const data = await response.json();
+                
+                // Hide typing indicator
+                document.getElementById('typingIndicator').style.display = 'none';
+                document.getElementById('sendButton').disabled = false;
+                
+                if (data.success) {
+                    addMessage(data.answer, false);
+                    updateStatus(`Answered in ${data.processing_time}s`);
+                    document.getElementById('processingTime').textContent = `${data.processing_time}s`;
+                } else {
+                    addMessage(`Error: ${data.answer}`, false);
+                    updateStatus('Error processing question', true);
+                }
+                
+            } catch (error) {
+                document.getElementById('typingIndicator').style.display = 'none';
+                document.getElementById('sendButton').disabled = false;
+                addMessage(`Network error: ${error.message}`, false);
+                updateStatus('Network error', true);
+                showAlert('Network error: ' + error.message, 'error');
+            }
+            
+            focusInput();
+        }
+        
+        // Add message to chat with animation
+        function addMessage(text, isUser) {
+            const time = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+            
+            const messageDiv = document.createElement('div');
+            messageDiv.className = `message ${isUser ? 'user-message' : 'bot-message'}`;
+            messageDiv.style.animationDelay = `${messageDelay}ms`;
+            messageDelay += 100;
+            
+            messageDiv.innerHTML = `
+                <div class="message-bubble ${isUser ? 'user-bubble' : 'bot-bubble'}">
+                    <div class="message-header">
+                        <i class="fas ${isUser ? 'fa-user' : 'fa-robot'}"></i>
+                        <span>${isUser ? 'You' : 'AI Assistant'}</span>
+                    </div>
+                    <p>${text.replace(/\n/g, '<br>')}</p>
+                </div>
+                <div class="message-time">${time}</div>
+            `;
+            
+            messagesDiv.appendChild(messageDiv);
+            
+            // Auto-scroll to bottom
+            autoScrollToBottom();
+            
+            // Reset delay after a while
+            setTimeout(() => {
+                messageDelay = 100;
+            }, 1000);
+        }
+        
+        // Update status
+        function updateStatus(message, isError = false) {
+            const statusDiv = document.getElementById('statusText');
+            statusDiv.textContent = message;
+            statusDiv.style.color = isError ? 'var(--danger)' : 'var(--text-secondary)';
+        }
+        
+        // Update active PDF badge
+        function updateActivePdfBadge(pdf) {
+            const statusDiv = document.getElementById('statusText');
+            if (pdf) {
+                statusDiv.textContent = `Ready • Using: ${pdf.name}`;
+            } else {
+                statusDiv.textContent = 'Ready • Upload a PDF to begin';
+            }
+        }
+        
+        // Show alert
+        function showAlert(message, type = 'info') {
+            // Create alert element
+            const alertDiv = document.createElement('div');
+            alertDiv.style.cssText = `
+                position: fixed;
+                top: 20px;
+                right: 20px;
+                padding: 15px 25px;
+                border-radius: 12px;
+                color: white;
+                font-weight: 600;
+                display: flex;
+                align-items: center;
+                gap: 12px;
+                box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+                z-index: 1000;
+                animation: slideIn 0.3s ease, fadeOut 0.3s ease 2.7s;
+                animation-fill-mode: forwards;
+            `;
+            
+            if (type === 'success') {
+                alertDiv.style.background = 'linear-gradient(135deg, var(--success) 0%, #34d399 100%)';
+            } else if (type === 'error') {
+                alertDiv.style.background = 'linear-gradient(135deg, var(--danger) 0%, #f87171 100%)';
+            } else {
+                alertDiv.style.background = 'linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%)';
+            }
+            
+            alertDiv.innerHTML = `
+                <i class="fas ${type === 'success' ? 'fa-check-circle' : type === 'error' ? 'fa-exclamation-circle' : 'fa-info-circle'}"></i>
+                <span>${message}</span>
+            `;
+            
+            document.body.appendChild(alertDiv);
+            
+            // Remove alert after animation
+            setTimeout(() => {
+                if (alertDiv.parentNode) {
+                    alertDiv.remove();
+                }
+            }, 3000);
+        }
+        
+        // Focus input
+        function focusInput() {
+            document.getElementById('question').focus();
+        }
+        
+        // Enter key support
+        document.getElementById('question').addEventListener('keypress', function(e) {
+            if (e.key === 'Enter' && !document.getElementById('sendButton').disabled) {
+                sendMessage();
+            }
+        });
+    </script>
+</body>
+</html>
